@@ -34,7 +34,7 @@ class Particle {
         this.baseX = x;
         this.baseY = y;
         this.density = (Math.random() * 30) + 5;
-        this.size = Math.random() * 2 + 0.5;
+        this.size = Math.random() * 3.5 + 1.5; // Partículas maiores (1.5 a 5)
         this.opacity = 0;
         this.targetOpacity = 0;
         this.speedX = Math.random() * 0.5 - 0.25;
@@ -46,11 +46,27 @@ class Particle {
     }
 
     draw() {
+        // Glow effect - outer glow
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = `rgba(255, 255, 255, ${this.opacity * 0.8})`;
+
+        // Main particle
         ctx.fillStyle = `rgba(255, 255, 255, ${this.opacity})`;
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
         ctx.closePath();
         ctx.fill();
+
+        // Inner bright core for more pop
+        ctx.shadowBlur = 8;
+        ctx.fillStyle = `rgba(255, 255, 255, ${Math.min(1, this.opacity * 1.2)})`;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size * 0.6, 0, Math.PI * 2);
+        ctx.closePath();
+        ctx.fill();
+
+        // Reset shadow for other drawings
+        ctx.shadowBlur = 0;
     }
 
     update() {
@@ -65,7 +81,7 @@ class Particle {
         let directionY = forceDirectionY * force * this.density;
 
         if (distance < mouse.radius) {
-            this.targetOpacity = Math.min(1, force * 2);
+            this.targetOpacity = Math.min(1, force * 2.5); // Opacidade mais intensa
 
             // Em vez de usar o ângulo radial, mistura direções para quebrar o círculo
             let radialAngle = Math.atan2(dy, dx);
