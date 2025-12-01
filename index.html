@@ -12,9 +12,29 @@
     <div class="content">
         <h1 class="brand">Gambia</h1>
         <p class="subtitle">brazilian innovation studio</p>
-        <a href="mailto:hello@gambia.com" class="contact">hello@gambia.com</a>
+        <button id="contactButton" class="contact">hello@gambia.com</button>
     </div>
 
     <script src="particles.js"></script>
+    <script>
+        const contactButton = document.getElementById('contactButton');
+        const originalText = 'hello@gambia.com';
+        const copiedText = 'email copied, send us your ideas';
+
+        contactButton.addEventListener('click', function() {
+            // Copy email to clipboard
+            navigator.clipboard.writeText('hello@gambia.com').then(function() {
+                // Change button text
+                contactButton.textContent = copiedText;
+
+                // Reset after 3 seconds
+                setTimeout(function() {
+                    contactButton.textContent = originalText;
+                }, 3000);
+            }).catch(function(err) {
+                console.error('Failed to copy email: ', err);
+            });
+        });
+    </script>
 </body>
 </html>
