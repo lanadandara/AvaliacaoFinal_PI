@@ -7,11 +7,10 @@ canvas.height = window.innerHeight;
 let mouse = {
     x: null,
     y: null,
-    radius: 200
+    radius: 150
 };
 
-let glitchSlices = [];
-let pixelSize = 4;
+let glitchPoints = [];
 
 window.addEventListener('mousemove', function(event) {
     mouse.x = event.x;
@@ -29,189 +28,119 @@ window.addEventListener('mouseout', function() {
     mouse.y = null;
 });
 
-class GlitchSlice {
-    constructor(y) {
+class GlitchPoint {
+    constructor(x, y) {
+        this.x = x;
         this.y = y;
+        this.baseX = x;
         this.baseY = y;
-        this.height = Math.random() * 15 + 5;
-        this.offsetX = 0;
-        this.targetOffsetX = 0;
+        this.size = Math.random() * 2 + 1; // Small points: 1-3px
         this.opacity = 0;
         this.targetOpacity = 0;
-        this.rgbShift = 0;
-        this.targetRgbShift = 0;
-        this.pixelation = 0;
-        this.targetPixelation = 0;
+        this.offsetX = 0;
+        this.offsetY = 0;
+        this.targetOffsetX = 0;
+        this.targetOffsetY = 0;
+        this.color = this.getRandomColor();
         this.glitchIntensity = Math.random();
-        this.updateTimer = 0;
-        this.staticNoise = Math.random();
+        this.flickerSpeed = Math.random() * 0.1 + 0.05;
+    }
+
+    getRandomColor() {
+        const colors = [
+            [255, 255, 255], // white
+            [255, 0, 0],     // red
+            [0, 255, 0],     // green
+            [0, 0, 255],     // blue
+            [255, 255, 255], // more white for balance
+            [255, 255, 255]
+        ];
+        return colors[Math.floor(Math.random() * colors.length)];
     }
 
     update() {
-        // Check if mouse is near this slice
+        // Check if mouse is near this point
         if (mouse.x !== null && mouse.y !== null) {
-            let dy = Math.abs(mouse.y - this.y);
-            let dx = Math.abs(mouse.x - canvas.width / 2);
+            let dx = mouse.x - this.baseX;
+            let dy = mouse.y - this.baseY;
+            let distance = Math.sqrt(dx * dx + dy * dy);
 
-            if (dy < mouse.radius) {
-                let distance = dy;
+            if (distance < mouse.radius) {
                 let force = 1 - (distance / mouse.radius);
 
-                // Set target values based on mouse proximity
-                this.targetOpacity = force * 0.8;
-                this.targetOffsetX = (Math.random() - 0.5) * force * 150 * this.glitchIntensity;
-                this.targetRgbShift = force * 8 * this.glitchIntensity;
-                this.targetPixelation = force * 12;
+                // Appear when mouse is near
+                this.targetOpacity = Math.min(0.8, force * this.glitchIntensity);
 
-                // Random repositioning for glitchy effect
-                this.updateTimer++;
-                if (this.updateTimer > 5 && Math.random() > 0.7) {
-                    this.targetOffsetX = (Math.random() - 0.5) * force * 200;
-                    this.updateTimer = 0;
+                // Small random offset for glitchy feel
+                this.targetOffsetX = (Math.random() - 0.5) * force * 20;
+                this.targetOffsetY = (Math.random() - 0.5) * force * 20;
+
+                // Occasionally change color for glitch effect
+                if (Math.random() > 0.97) {
+                    this.color = this.getRandomColor();
                 }
             } else {
                 this.targetOpacity = 0;
                 this.targetOffsetX = 0;
-                this.targetRgbShift = 0;
-                this.targetPixelation = 0;
+                this.targetOffsetY = 0;
             }
         } else {
             this.targetOpacity = 0;
             this.targetOffsetX = 0;
-            this.targetRgbShift = 0;
-            this.targetPixelation = 0;
+            this.targetOffsetY = 0;
         }
 
         // Smooth interpolation
-        this.opacity += (this.targetOpacity - this.opacity) * 0.15;
+        this.opacity += (this.targetOpacity - this.opacity) * this.flickerSpeed;
         this.offsetX += (this.targetOffsetX - this.offsetX) * 0.1;
-        this.rgbShift += (this.targetRgbShift - this.rgbShift) * 0.15;
-        this.pixelation += (this.targetPixelation - this.pixelation) * 0.1;
+        this.offsetY += (this.targetOffsetY - this.offsetY) * 0.1;
+
+        // Update position
+        this.x = this.baseX + this.offsetX;
+        this.y = this.baseY + this.offsetY;
     }
 
     draw() {
         if (this.opacity > 0.01) {
-            let currentY = this.y;
-            let currentHeight = this.height;
+            ctx.fillStyle = `rgba(${this.color[0]}, ${this.color[1]}, ${this.color[2]}, ${this.opacity})`;
+            ctx.fillRect(this.x, this.y, this.size, this.size);
 
-            // Draw pixelated effect
-            if (this.pixelation > 0.5) {
-                let pixSize = Math.max(2, Math.floor(this.pixelation));
-                ctx.fillStyle = `rgba(255, 255, 255, ${this.opacity * 0.3})`;
-
-                for (let x = 0; x < canvas.width; x += pixSize) {
-                    if (Math.random() > 0.5) {
-                        let randomOffset = (Math.random() - 0.5) * this.pixelation * 2;
-                        ctx.fillRect(
-                            x + this.offsetX + randomOffset,
-                            currentY,
-                            pixSize,
-                            currentHeight
-                        );
-                    }
-                }
-            }
-
-            // RGB split effect for glitch
-            if (this.rgbShift > 0.5) {
-                // Red channel
-                ctx.fillStyle = `rgba(255, 0, 0, ${this.opacity * 0.4})`;
-                ctx.fillRect(
-                    this.offsetX - this.rgbShift,
-                    currentY,
-                    canvas.width,
-                    currentHeight
-                );
-
-                // Green channel
-                ctx.fillStyle = `rgba(0, 255, 0, ${this.opacity * 0.3})`;
-                ctx.fillRect(
-                    this.offsetX,
-                    currentY,
-                    canvas.width,
-                    currentHeight
-                );
-
-                // Blue channel
-                ctx.fillStyle = `rgba(0, 0, 255, ${this.opacity * 0.4})`;
-                ctx.fillRect(
-                    this.offsetX + this.rgbShift,
-                    currentY,
-                    canvas.width,
-                    currentHeight
-                );
-            }
-
-            // Main white glitch bars
-            ctx.fillStyle = `rgba(255, 255, 255, ${this.opacity})`;
-            ctx.fillRect(
-                this.offsetX,
-                currentY,
-                canvas.width,
-                currentHeight
-            );
-
-            // Add some horizontal line segments for more glitch effect
-            if (this.opacity > 0.3 && Math.random() > 0.6) {
-                ctx.fillStyle = `rgba(${Math.random() * 100 + 155}, ${Math.random() * 100 + 155}, ${Math.random() * 100 + 155}, ${this.opacity * 0.8})`;
-                let segmentWidth = Math.random() * 200 + 50;
-                let segmentX = Math.random() * canvas.width;
-                ctx.fillRect(
-                    segmentX + this.offsetX,
-                    currentY,
-                    segmentWidth,
-                    currentHeight * 0.5
-                );
-            }
-
-            // Pixelated noise overlay
-            if (this.pixelation > 2) {
-                for (let i = 0; i < 10; i++) {
-                    if (Math.random() > 0.7) {
-                        let noiseSize = Math.floor(this.pixelation / 2) + 2;
-                        ctx.fillStyle = `rgba(${Math.random() * 255}, ${Math.random() * 255}, ${Math.random() * 255}, ${this.opacity * 0.5})`;
-                        ctx.fillRect(
-                            Math.random() * canvas.width + this.offsetX,
-                            currentY + Math.random() * currentHeight,
-                            noiseSize,
-                            noiseSize
-                        );
-                    }
-                }
+            // Occasionally add a subtle glow
+            if (this.opacity > 0.5 && Math.random() > 0.9) {
+                ctx.fillStyle = `rgba(${this.color[0]}, ${this.color[1]}, ${this.color[2]}, ${this.opacity * 0.3})`;
+                ctx.fillRect(this.x - 1, this.y - 1, this.size + 2, this.size + 2);
             }
         }
     }
 }
 
 function init() {
-    glitchSlices = [];
-    let sliceCount = Math.floor(canvas.height / 15);
+    glitchPoints = [];
 
-    for (let i = 0; i < sliceCount; i++) {
-        let y = (canvas.height / sliceCount) * i;
-        glitchSlices.push(new GlitchSlice(y));
+    // Create a grid of potential glitch points
+    const spacing = 30; // Distance between points
+    const randomOffset = 15; // Random variation in position
+
+    for (let x = 0; x < canvas.width; x += spacing) {
+        for (let y = 0; y < canvas.height; y += spacing) {
+            // Add random offset so they're not in a perfect grid
+            let px = x + (Math.random() - 0.5) * randomOffset;
+            let py = y + (Math.random() - 0.5) * randomOffset;
+
+            // Only add some points (not all) for more scattered effect
+            if (Math.random() > 0.3) {
+                glitchPoints.push(new GlitchPoint(px, py));
+            }
+        }
     }
 }
 
 function animate() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Optional: add subtle background static when mouse is present
-    if (mouse.x !== null && mouse.y !== null && Math.random() > 0.95) {
-        for (let i = 0; i < 50; i++) {
-            ctx.fillStyle = `rgba(255, 255, 255, ${Math.random() * 0.1})`;
-            ctx.fillRect(
-                Math.random() * canvas.width,
-                Math.random() * canvas.height,
-                Math.random() * 3 + 1,
-                Math.random() * 3 + 1
-            );
-        }
-    }
-
-    for (let i = 0; i < glitchSlices.length; i++) {
-        glitchSlices[i].update();
-        glitchSlices[i].draw();
+    for (let i = 0; i < glitchPoints.length; i++) {
+        glitchPoints[i].update();
+        glitchPoints[i].draw();
     }
 
     requestAnimationFrame(animate);
