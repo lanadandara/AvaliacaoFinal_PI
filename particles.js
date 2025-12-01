@@ -1,5 +1,5 @@
 const canvas = document.getElementById('particleCanvas');
-const ctx = canvas.getContext('2d');
+const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
@@ -7,13 +7,24 @@ canvas.height = window.innerHeight;
 let mouse = {
     x: null,
     y: null,
-    radius: 150
+    radius: 200,
+    velocity: 0
 };
 
-let nodes = [];
-let time = 0;
+let lastMouseX = null;
+let lastMouseY = null;
+let glitchIntensity = 0;
+let targetGlitchIntensity = 0;
 
 window.addEventListener('mousemove', function(event) {
+    if (lastMouseX !== null && lastMouseY !== null) {
+        let dx = event.x - lastMouseX;
+        let dy = event.y - lastMouseY;
+        mouse.velocity = Math.sqrt(dx * dx + dy * dy);
+    }
+
+    lastMouseX = event.x;
+    lastMouseY = event.y;
     mouse.x = event.x;
     mouse.y = event.y;
 });
@@ -21,181 +32,187 @@ window.addEventListener('mousemove', function(event) {
 window.addEventListener('resize', function() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
-    init();
 });
 
 window.addEventListener('mouseout', function() {
     mouse.x = null;
     mouse.y = null;
+    mouse.velocity = 0;
 });
 
-class Node {
-    constructor(x, y, id) {
-        this.baseX = x;
-        this.baseY = y;
-        this.x = x;
-        this.y = y;
-        this.id = id;
-
-        // Visual properties
-        this.size = Math.random() * 2 + 1;
-        this.baseSize = this.size;
-        this.opacity = 0;
-        this.targetOpacity = Math.random() * 0.3 + 0.1;
-
-        // Movement properties
-        this.vx = 0;
-        this.vy = 0;
-        this.damping = 0.85;
-        this.spring = 0.03;
-
-        // Noise offset for organic movement
-        this.noiseOffsetX = Math.random() * 1000;
-        this.noiseOffsetY = Math.random() * 1000;
-        this.noiseSpeed = Math.random() * 0.0005 + 0.0002;
-
-        // Lifecycle
-        this.life = Math.random();
-        this.lifeSpeed = Math.random() * 0.01 + 0.005;
-
-        // Mouse interaction
-        this.distanceFromMouse = Infinity;
+// Glitch line class for horizontal displacement
+class GlitchLine {
+    constructor() {
+        this.reset();
     }
 
-    update() {
-        time += 0.001;
+    reset() {
+        this.y = Math.random() * canvas.height;
+        this.height = Math.random() * 20 + 2;
+        this.offsetX = 0;
+        this.targetOffsetX = 0;
+        this.life = 0;
+        this.maxLife = Math.random() * 30 + 10;
+        this.rgbSplit = Math.random() * 15 + 5;
+        this.active = false;
+    }
 
-        // Organic noise-based movement when no mouse
-        let noiseX = (Math.sin(this.noiseOffsetX + time * 1000 * this.noiseSpeed) * 0.5 + 0.5) * 30 - 15;
-        let noiseY = (Math.cos(this.noiseOffsetY + time * 1000 * this.noiseSpeed) * 0.5 + 0.5) * 30 - 15;
+    update(intensity) {
+        // Randomly activate glitch lines
+        if (!this.active && Math.random() < 0.02 * intensity) {
+            this.active = true;
+            this.y = Math.random() * canvas.height;
+            this.height = Math.random() * 30 + 5;
+            this.targetOffsetX = (Math.random() - 0.5) * 100 * intensity;
+            this.rgbSplit = Math.random() * 20 * intensity;
+            this.life = 0;
+            this.maxLife = Math.random() * 20 + 5;
+        }
 
-        // Calculate distance from mouse
-        if (mouse.x !== null && mouse.y !== null) {
-            let dx = mouse.x - this.baseX;
-            let dy = mouse.y - this.baseY;
-            this.distanceFromMouse = Math.sqrt(dx * dx + dy * dy);
+        if (this.active) {
+            this.life++;
 
-            if (this.distanceFromMouse < mouse.radius) {
-                // Strong repulsion/attraction based on distance
-                let force = (1 - this.distanceFromMouse / mouse.radius) * 2;
-                let angle = Math.atan2(dy, dx);
+            // Smooth offset transition
+            this.offsetX += (this.targetOffsetX - this.offsetX) * 0.3;
 
-                // Create fluid wave effect
-                let waveEffect = Math.sin(this.distanceFromMouse * 0.05 - time * 5) * force;
+            // Random offset changes for jittery effect
+            if (Math.random() < 0.3) {
+                this.targetOffsetX = (Math.random() - 0.5) * 80 * intensity;
+            }
 
-                // Push away from mouse with wave motion
-                this.vx -= Math.cos(angle) * force * 3 + waveEffect * Math.cos(angle);
-                this.vy -= Math.sin(angle) * force * 3 + waveEffect * Math.sin(angle);
-
-                // Increase opacity and size near mouse
-                this.targetOpacity = Math.min(1, force * 0.8 + 0.2);
-                this.size = this.baseSize * (1 + force * 2);
-            } else {
-                this.targetOpacity = Math.random() * 0.3 + 0.1;
-                this.size = this.baseSize;
+            // Deactivate after life expires
+            if (this.life > this.maxLife) {
+                this.active = false;
+                this.targetOffsetX = 0;
             }
         } else {
-            this.targetOpacity = Math.random() * 0.3 + 0.1;
-            this.size = this.baseSize;
-            this.distanceFromMouse = Infinity;
-        }
-
-        // Apply spring force to return to base position
-        let dx = this.baseX + noiseX - this.x;
-        let dy = this.baseY + noiseY - this.y;
-
-        this.vx += dx * this.spring;
-        this.vy += dy * this.spring;
-
-        // Apply velocity and damping
-        this.vx *= this.damping;
-        this.vy *= this.damping;
-
-        this.x += this.vx;
-        this.y += this.vy;
-
-        // Update opacity smoothly
-        this.opacity += (this.targetOpacity - this.opacity) * 0.1;
-
-        // Lifecycle animation (subtle pulsing)
-        this.life += this.lifeSpeed;
-        if (this.life > Math.PI * 2) {
-            this.life = 0;
+            // Return to normal position
+            this.offsetX += (0 - this.offsetX) * 0.2;
         }
     }
 
-    draw() {
-        if (this.opacity > 0.01) {
-            // Pulsing effect
-            let pulse = Math.sin(this.life) * 0.2 + 0.8;
-            let finalOpacity = this.opacity * pulse;
-            let finalSize = this.size * pulse;
+    draw(imageData) {
+        if (this.active && Math.abs(this.offsetX) > 0.5) {
+            let startY = Math.floor(Math.max(0, this.y));
+            let endY = Math.floor(Math.min(canvas.height, this.y + this.height));
 
-            // Draw pixelated dot
-            ctx.fillStyle = `rgba(255, 255, 255, ${finalOpacity})`;
-            ctx.fillRect(
-                Math.floor(this.x - finalSize / 2),
-                Math.floor(this.y - finalSize / 2),
-                Math.ceil(finalSize),
-                Math.ceil(finalSize)
-            );
+            // RGB channel shift
+            this.drawRGBShift(imageData, startY, endY);
+        }
+    }
 
-            // Add glow for nodes near mouse
-            if (this.distanceFromMouse < mouse.radius * 0.6 && mouse.x !== null) {
-                let glowSize = finalSize * 2;
-                ctx.fillStyle = `rgba(255, 255, 255, ${finalOpacity * 0.2})`;
-                ctx.fillRect(
-                    Math.floor(this.x - glowSize / 2),
-                    Math.floor(this.y - glowSize / 2),
-                    Math.ceil(glowSize),
-                    Math.ceil(glowSize)
-                );
+    drawRGBShift(imageData, startY, endY) {
+        let offset = Math.floor(this.offsetX);
+        let rgbOffset = Math.floor(this.rgbSplit);
+
+        // Create temporary line buffer
+        for (let y = startY; y < endY; y++) {
+            let rowStart = y * canvas.width * 4;
+            let tempRow = new Uint8ClampedArray(canvas.width * 4);
+
+            // Copy original row
+            for (let i = 0; i < canvas.width * 4; i++) {
+                tempRow[i] = imageData.data[rowStart + i];
+            }
+
+            // Apply displacement with RGB split
+            for (let x = 0; x < canvas.width; x++) {
+                let sourceX = x - offset;
+
+                if (sourceX >= 0 && sourceX < canvas.width) {
+                    let targetIdx = rowStart + x * 4;
+                    let sourceIdx = rowStart + sourceX * 4;
+
+                    // Red channel shifted
+                    let redX = Math.max(0, Math.min(canvas.width - 1, sourceX - rgbOffset));
+                    imageData.data[targetIdx] = tempRow[rowStart + redX * 4];
+
+                    // Green channel
+                    imageData.data[targetIdx + 1] = tempRow[sourceIdx + 1];
+
+                    // Blue channel shifted opposite direction
+                    let blueX = Math.max(0, Math.min(canvas.width - 1, sourceX + rgbOffset));
+                    imageData.data[targetIdx + 2] = tempRow[rowStart + blueX * 4 + 2];
+
+                    // Alpha
+                    imageData.data[targetIdx + 3] = tempRow[sourceIdx + 3];
+                }
+            }
+        }
+    }
+}
+
+// Corruption block class
+class CorruptionBlock {
+    constructor() {
+        this.reset();
+    }
+
+    reset() {
+        this.x = Math.random() * canvas.width;
+        this.y = Math.random() * canvas.height;
+        this.width = Math.random() * 150 + 50;
+        this.height = Math.random() * 100 + 30;
+        this.life = 0;
+        this.maxLife = Math.random() * 15 + 5;
+        this.active = false;
+        this.type = Math.floor(Math.random() * 3); // Different corruption types
+    }
+
+    update(intensity) {
+        if (!this.active && Math.random() < 0.01 * intensity) {
+            this.active = true;
+            this.x = Math.random() * canvas.width;
+            this.y = Math.random() * canvas.height;
+            this.width = Math.random() * 200 + 100;
+            this.height = Math.random() * 150 + 50;
+            this.life = 0;
+            this.maxLife = Math.random() * 10 + 3;
+            this.type = Math.floor(Math.random() * 3);
+        }
+
+        if (this.active) {
+            this.life++;
+            if (this.life > this.maxLife) {
+                this.active = false;
             }
         }
     }
 
-    drawConnections(otherNodes) {
-        // Only draw connections if node is visible enough
-        if (this.opacity < 0.1) return;
+    draw(imageData) {
+        if (!this.active) return;
 
-        let maxDistance = 80;
-        let connectionOpacity = this.opacity * 0.3;
+        let startX = Math.floor(Math.max(0, this.x));
+        let endX = Math.floor(Math.min(canvas.width, this.x + this.width));
+        let startY = Math.floor(Math.max(0, this.y));
+        let endY = Math.floor(Math.min(canvas.height, this.y + this.height));
 
-        for (let other of otherNodes) {
-            if (other.id <= this.id) continue; // Avoid duplicate connections
-            if (other.opacity < 0.1) continue;
+        for (let y = startY; y < endY; y++) {
+            for (let x = startX; x < endX; x++) {
+                let idx = (y * canvas.width + x) * 4;
 
-            let dx = other.x - this.x;
-            let dy = other.y - this.y;
-            let distance = Math.sqrt(dx * dx + dy * dy);
+                if (this.type === 0) {
+                    // Invert colors
+                    imageData.data[idx] = 255 - imageData.data[idx];
+                    imageData.data[idx + 1] = 255 - imageData.data[idx + 1];
+                    imageData.data[idx + 2] = 255 - imageData.data[idx + 2];
+                } else if (this.type === 1) {
+                    // Bit crush
+                    let levels = 4;
+                    imageData.data[idx] = Math.floor(imageData.data[idx] / levels) * levels;
+                    imageData.data[idx + 1] = Math.floor(imageData.data[idx + 1] / levels) * levels;
+                    imageData.data[idx + 2] = Math.floor(imageData.data[idx + 2] / levels) * levels;
+                } else {
+                    // Pixelate
+                    let pixelSize = 8;
+                    let px = Math.floor(x / pixelSize) * pixelSize;
+                    let py = Math.floor(y / pixelSize) * pixelSize;
+                    let sampIdx = (py * canvas.width + px) * 4;
 
-            if (distance < maxDistance) {
-                let opacity = (1 - distance / maxDistance) * connectionOpacity * other.opacity;
-
-                // Draw pixelated line
-                ctx.strokeStyle = `rgba(255, 255, 255, ${opacity})`;
-                ctx.lineWidth = 1;
-
-                ctx.beginPath();
-                ctx.moveTo(Math.floor(this.x), Math.floor(this.y));
-                ctx.lineTo(Math.floor(other.x), Math.floor(other.y));
-                ctx.stroke();
-
-                // Boost connection opacity near mouse
-                if (mouse.x !== null) {
-                    let midX = (this.x + other.x) / 2;
-                    let midY = (this.y + other.y) / 2;
-                    let distToMouse = Math.sqrt((mouse.x - midX) ** 2 + (mouse.y - midY) ** 2);
-
-                    if (distToMouse < mouse.radius * 0.7) {
-                        let boost = (1 - distToMouse / (mouse.radius * 0.7)) * 0.4;
-                        ctx.strokeStyle = `rgba(255, 255, 255, ${opacity + boost})`;
-                        ctx.lineWidth = 2;
-
-                        ctx.beginPath();
-                        ctx.moveTo(Math.floor(this.x), Math.floor(this.y));
-                        ctx.lineTo(Math.floor(other.x), Math.floor(other.y));
-                        ctx.stroke();
+                    if (sampIdx >= 0 && sampIdx < imageData.data.length - 3) {
+                        imageData.data[idx] = imageData.data[sampIdx];
+                        imageData.data[idx + 1] = imageData.data[sampIdx + 1];
+                        imageData.data[idx + 2] = imageData.data[sampIdx + 2];
                     }
                 }
             }
@@ -203,66 +220,147 @@ class Node {
     }
 }
 
-function init() {
-    nodes = [];
+// Initialize glitch elements
+let glitchLines = [];
+let corruptionBlocks = [];
 
-    // Create irregular grid of nodes
-    let spacingX = 40;
-    let spacingY = 40;
-    let cols = Math.ceil(canvas.width / spacingX) + 2;
-    let rows = Math.ceil(canvas.height / spacingY) + 2;
+for (let i = 0; i < 15; i++) {
+    glitchLines.push(new GlitchLine());
+}
 
-    let id = 0;
-    for (let i = 0; i < rows; i++) {
-        for (let j = 0; j < cols; j++) {
-            // Add randomness to grid positions for organic look
-            let x = j * spacingX + (Math.random() - 0.5) * spacingX * 0.5 - spacingX;
-            let y = i * spacingY + (Math.random() - 0.5) * spacingY * 0.5 - spacingY;
+for (let i = 0; i < 8; i++) {
+    corruptionBlocks.push(new CorruptionBlock());
+}
 
-            // Skip some nodes randomly for dispersed effect
-            if (Math.random() > 0.15) {
-                nodes.push(new Node(x, y, id++));
+// Render base content to glitch
+function renderBaseContent() {
+    ctx.fillStyle = 'rgba(0, 0, 0, 1)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Draw some subtle grid or pattern to glitch
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+    ctx.lineWidth = 1;
+
+    let gridSize = 50;
+    for (let x = 0; x < canvas.width; x += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+        ctx.stroke();
+    }
+
+    for (let y = 0; y < canvas.height; y += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
+    }
+
+    // Add some random dots for texture
+    if (mouse.x !== null) {
+        for (let i = 0; i < 100; i++) {
+            let x = Math.random() * canvas.width;
+            let y = Math.random() * canvas.height;
+            let dx = x - mouse.x;
+            let dy = y - mouse.y;
+            let dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist < mouse.radius) {
+                let opacity = (1 - dist / mouse.radius) * 0.2;
+                ctx.fillStyle = `rgba(255, 255, 255, ${opacity})`;
+                ctx.fillRect(x, y, 2, 2);
             }
         }
     }
 }
 
 function animate() {
-    // Fade effect instead of clear for trail
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    // Update all nodes
-    for (let node of nodes) {
-        node.update();
+    // Calculate glitch intensity based on mouse presence and velocity
+    if (mouse.x !== null) {
+        let velocityFactor = Math.min(mouse.velocity / 20, 1);
+        targetGlitchIntensity = 0.3 + velocityFactor * 0.7;
+    } else {
+        targetGlitchIntensity = 0.05; // Minimal ambient glitching
     }
 
-    // Draw connections first (behind nodes)
-    for (let node of nodes) {
-        node.drawConnections(nodes);
+    // Smooth intensity transition
+    glitchIntensity += (targetGlitchIntensity - glitchIntensity) * 0.1;
+
+    // Decay mouse velocity
+    mouse.velocity *= 0.9;
+
+    // Render base content
+    renderBaseContent();
+
+    // Get image data for manipulation
+    let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+    // Update and apply glitch lines
+    for (let line of glitchLines) {
+        line.update(glitchIntensity);
+        line.draw(imageData);
     }
 
-    // Draw nodes on top
-    for (let node of nodes) {
-        node.draw();
+    // Update and apply corruption blocks
+    for (let block of corruptionBlocks) {
+        block.update(glitchIntensity);
+        block.draw(imageData);
     }
 
-    // Add occasional pixel "dust" near mouse
-    if (mouse.x !== null && Math.random() > 0.8) {
-        for (let i = 0; i < 5; i++) {
-            let angle = Math.random() * Math.PI * 2;
-            let distance = Math.random() * mouse.radius * 0.8;
-            let x = mouse.x + Math.cos(angle) * distance;
-            let y = mouse.y + Math.sin(angle) * distance;
-            let size = Math.random() * 2 + 1;
+    // Random RGB channel shift on entire canvas
+    if (glitchIntensity > 0.3 && Math.random() < 0.05) {
+        applyGlobalRGBShift(imageData, Math.floor(glitchIntensity * 10));
+    }
 
-            ctx.fillStyle = `rgba(255, 255, 255, ${Math.random() * 0.3})`;
-            ctx.fillRect(Math.floor(x), Math.floor(y), size, size);
-        }
+    // Apply scanline effect
+    applyScanlines(imageData, glitchIntensity);
+
+    // Put modified image data back
+    ctx.putImageData(imageData, 0, 0);
+
+    // Add some overlay glitch bars
+    if (Math.random() < glitchIntensity * 0.1) {
+        let barY = Math.random() * canvas.height;
+        let barHeight = Math.random() * 5 + 1;
+        ctx.fillStyle = `rgba(${Math.random() * 100 + 155}, ${Math.random() * 100 + 155}, ${Math.random() * 100 + 155}, ${glitchIntensity * 0.8})`;
+        ctx.fillRect(0, barY, canvas.width, barHeight);
     }
 
     requestAnimationFrame(animate);
 }
 
-init();
+function applyGlobalRGBShift(imageData, amount) {
+    let tempData = new Uint8ClampedArray(imageData.data);
+
+    for (let y = 0; y < canvas.height; y++) {
+        for (let x = 0; x < canvas.width; x++) {
+            let idx = (y * canvas.width + x) * 4;
+
+            // Shift red channel
+            let redX = Math.max(0, Math.min(canvas.width - 1, x - amount));
+            let redIdx = (y * canvas.width + redX) * 4;
+            imageData.data[idx] = tempData[redIdx];
+
+            // Shift blue channel
+            let blueX = Math.max(0, Math.min(canvas.width - 1, x + amount));
+            let blueIdx = (y * canvas.width + blueX) * 4;
+            imageData.data[idx + 2] = tempData[blueIdx + 2];
+        }
+    }
+}
+
+function applyScanlines(imageData, intensity) {
+    let scanlineSpacing = 4;
+    let scanlineOpacity = intensity * 0.15;
+
+    for (let y = 0; y < canvas.height; y += scanlineSpacing) {
+        for (let x = 0; x < canvas.width; x++) {
+            let idx = (y * canvas.width + x) * 4;
+            imageData.data[idx] *= (1 - scanlineOpacity);
+            imageData.data[idx + 1] *= (1 - scanlineOpacity);
+            imageData.data[idx + 2] *= (1 - scanlineOpacity);
+        }
+    }
+}
+
 animate();
