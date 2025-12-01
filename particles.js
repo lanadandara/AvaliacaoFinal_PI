@@ -44,15 +44,9 @@ class GlitchFragment {
         this.targetOpacity = 0;
         this.rgbShift = 0;
         this.targetRgbShift = 0;
-        this.rotation = (Math.random() - 0.5) * 0.3;
         this.pixelSize = Math.floor(Math.random() * 4) + 2;
         this.glitchIntensity = Math.random();
         this.updateTimer = 0;
-        this.color = Math.random() > 0.7 ? {
-            r: Math.random() * 255,
-            g: Math.random() * 255,
-            b: Math.random() * 255
-        } : { r: 255, g: 255, b: 255 };
     }
 
     update() {
@@ -108,51 +102,34 @@ class GlitchFragment {
 
     draw() {
         if (this.opacity > 0.01) {
-            ctx.save();
-            ctx.translate(this.x, this.y);
-            ctx.rotate(this.rotation);
-
-            // RGB split effect for glitch
-            if (this.rgbShift > 0.5) {
-                // Red channel
-                ctx.fillStyle = `rgba(255, 0, 0, ${this.opacity * 0.4})`;
-                ctx.fillRect(-this.rgbShift, 0, this.width, this.height);
-
-                // Blue channel
-                ctx.fillStyle = `rgba(0, 0, 255, ${this.opacity * 0.4})`;
-                ctx.fillRect(this.rgbShift, 0, this.width, this.height);
-            }
-
             // Draw pixelated fragments
             if (Math.random() > 0.5) {
                 for (let px = 0; px < this.width; px += this.pixelSize) {
                     for (let py = 0; py < this.height; py += this.pixelSize) {
                         if (Math.random() > 0.4) {
-                            ctx.fillStyle = `rgba(${this.color.r}, ${this.color.g}, ${this.color.b}, ${this.opacity})`;
-                            ctx.fillRect(px, py, this.pixelSize, this.pixelSize);
+                            ctx.fillStyle = `rgba(255, 255, 255, ${this.opacity})`;
+                            ctx.fillRect(this.x + px, this.y + py, this.pixelSize, this.pixelSize);
                         }
                     }
                 }
             } else {
                 // Solid fragment
-                ctx.fillStyle = `rgba(${this.color.r}, ${this.color.g}, ${this.color.b}, ${this.opacity})`;
-                ctx.fillRect(0, 0, this.width, this.height);
+                ctx.fillStyle = `rgba(255, 255, 255, ${this.opacity})`;
+                ctx.fillRect(this.x, this.y, this.width, this.height);
             }
 
-            // Add some random pixels for extra glitch
+            // Add some random white pixels for extra glitch
             if (this.opacity > 0.3 && Math.random() > 0.7) {
                 for (let i = 0; i < 5; i++) {
-                    ctx.fillStyle = `rgba(${Math.random() * 255}, ${Math.random() * 255}, ${Math.random() * 255}, ${this.opacity * 0.6})`;
+                    ctx.fillStyle = `rgba(255, 255, 255, ${this.opacity * 0.6})`;
                     ctx.fillRect(
-                        Math.random() * this.width,
-                        Math.random() * this.height,
+                        this.x + Math.random() * this.width,
+                        this.y + Math.random() * this.height,
                         this.pixelSize,
                         this.pixelSize
                     );
                 }
             }
-
-            ctx.restore();
         }
     }
 }
