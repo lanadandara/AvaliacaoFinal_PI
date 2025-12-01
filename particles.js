@@ -8,7 +8,7 @@ let particlesArray = [];
 let mouse = {
     x: null,
     y: null,
-    radius: 150
+    radius: 250
 };
 
 window.addEventListener('mousemove', function(event) {
@@ -33,8 +33,8 @@ class Particle {
         this.y = y;
         this.baseX = x;
         this.baseY = y;
-        this.density = (Math.random() * 30) + 5;
-        this.size = Math.random() * 2 + 0.5;
+        this.density = (Math.random() * 40) + 10;
+        this.size = Math.random() * 3.5 + 1.5;
         this.opacity = 0;
         this.targetOpacity = 0;
         this.speedX = Math.random() * 0.5 - 0.25;
@@ -61,19 +61,19 @@ class Particle {
         let directionY = forceDirectionY * force * this.density;
 
         if (distance < mouse.radius) {
-            this.targetOpacity = Math.min(1, force * 2);
+            this.targetOpacity = Math.min(1, force * 3 + 0.3);
 
             // Dispersão irregular
             let angle = Math.atan2(dy, dx);
             let irregularity = (Math.sin(Date.now() * 0.001 + this.baseX * 0.01) * 0.5 + 0.5) * Math.PI * 0.3;
             angle += irregularity;
 
-            let pushForce = force * this.density * 2;
+            let pushForce = force * this.density * 3;
             this.x -= Math.cos(angle) * pushForce;
             this.y -= Math.sin(angle) * pushForce;
 
             // Adiciona movimento espiral
-            let spiral = Math.sin(Date.now() * 0.002 + distance * 0.1) * 2;
+            let spiral = Math.sin(Date.now() * 0.002 + distance * 0.1) * 3;
             this.x += Math.cos(angle + Math.PI / 2) * spiral;
             this.y += Math.sin(angle + Math.PI / 2) * spiral;
         } else {
@@ -109,7 +109,7 @@ class Particle {
 
 function init() {
     particlesArray = [];
-    let numberOfParticles = (canvas.height * canvas.width) / 8000;
+    let numberOfParticles = (canvas.height * canvas.width) / 4000;
 
     for (let i = 0; i < numberOfParticles; i++) {
         let x = Math.random() * canvas.width;
@@ -125,11 +125,11 @@ function connect() {
             let dy = particlesArray[a].y - particlesArray[b].y;
             let distance = Math.sqrt(dx * dx + dy * dy);
 
-            if (distance < 100) {
-                let opacity = (1 - distance / 100) *
-                            Math.min(particlesArray[a].opacity, particlesArray[b].opacity) * 0.3;
+            if (distance < 120) {
+                let opacity = (1 - distance / 120) *
+                            Math.min(particlesArray[a].opacity, particlesArray[b].opacity) * 0.5;
                 ctx.strokeStyle = `rgba(255, 255, 255, ${opacity})`;
-                ctx.lineWidth = 0.5;
+                ctx.lineWidth = 1;
                 ctx.beginPath();
                 ctx.moveTo(particlesArray[a].x, particlesArray[a].y);
                 ctx.lineTo(particlesArray[b].x, particlesArray[b].y);
