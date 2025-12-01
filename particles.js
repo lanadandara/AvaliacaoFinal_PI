@@ -39,6 +39,10 @@ class Particle {
         this.targetOpacity = 0;
         this.speedX = Math.random() * 0.5 - 0.25;
         this.speedY = Math.random() * 0.5 - 0.25;
+        // Direção preferencial única para cada partícula - evita padrões circulares
+        this.preferredAngle = Math.random() * Math.PI * 2;
+        this.chaosLevel = Math.random() * 0.5 + 0.5; // 0.5 a 1.0
+        this.timeOffset = Math.random() * 1000;
     }
 
     draw() {
@@ -63,29 +67,42 @@ class Particle {
         if (distance < mouse.radius) {
             this.targetOpacity = Math.min(1, force * 2);
 
-            // Dispersão muito mais irregular e aleatória
-            let angle = Math.atan2(dy, dx);
+            // Em vez de usar o ângulo radial, mistura direções para quebrar o círculo
+            let radialAngle = Math.atan2(dy, dx);
 
-            // Aumenta a irregularidade do ângulo para maior dispersão
-            let irregularity = (Math.sin(Date.now() * 0.001 + this.baseX * 0.01) * 0.5 + 0.5) * Math.PI * 0.8;
-            let randomVariation = (Math.random() - 0.5) * Math.PI * 0.6;
-            angle += irregularity + randomVariation;
+            // Usa o ângulo preferencial da partícula + noise temporal
+            let time = Date.now() * 0.001 + this.timeOffset;
+            let noiseAngle1 = Math.sin(time * 0.7 + this.baseX * 0.02) * Math.PI;
+            let noiseAngle2 = Math.cos(time * 0.5 + this.baseY * 0.02) * Math.PI;
 
-            // Força de push mais variável e intensa
-            let pushForce = force * this.density * (2.5 + Math.random() * 1.5);
-            this.x -= Math.cos(angle) * pushForce;
-            this.y -= Math.sin(angle) * pushForce;
+            // Mistura: pouco radial, muito caótico
+            let finalAngle = (radialAngle * 0.2) +
+                           (this.preferredAngle * 0.4) +
+                           (noiseAngle1 * 0.3) +
+                           (noiseAngle2 * 0.3);
 
-            // Movimento espiral e perpendicular mais pronunciado
-            let spiral = Math.sin(Date.now() * 0.002 + distance * 0.1 + this.baseX * 0.05) * 4;
-            let perpendicularForce = (Math.random() - 0.5) * 3;
+            // Adiciona variação aleatória muito forte
+            finalAngle += (Math.random() - 0.5) * Math.PI * 1.2 * this.chaosLevel;
 
-            this.x += Math.cos(angle + Math.PI / 2) * (spiral + perpendicularForce);
-            this.y += Math.sin(angle + Math.PI / 2) * (spiral + perpendicularForce);
+            // Força de dispersão variável e intensa
+            let dispersionForce = force * this.density * (2 + Math.random() * 2) * this.chaosLevel;
 
-            // Adiciona turbulência extra para quebrar padrões circulares
-            this.x += (Math.random() - 0.5) * force * 5;
-            this.y += (Math.random() - 0.5) * force * 5;
+            // Aplica a força na direção final (não-radial)
+            this.x += Math.cos(finalAngle) * dispersionForce;
+            this.y += Math.sin(finalAngle) * dispersionForce;
+
+            // Múltiplas ondas de turbulência em diferentes escalas
+            let turbulence1 = Math.sin(time * 1.3 + distance * 0.15) * 3 * this.chaosLevel;
+            let turbulence2 = Math.cos(time * 0.8 + distance * 0.08) * 2 * this.chaosLevel;
+
+            this.x += turbulence1 + (Math.random() - 0.5) * 4;
+            this.y += turbulence2 + (Math.random() - 0.5) * 4;
+
+            // Vórtice que empurra partículas em espiral, não em círculo
+            let vortexAngle = finalAngle + Math.PI / 2;
+            let vortexStrength = Math.sin(time * 2 + distance * 0.2) * force * 3;
+            this.x += Math.cos(vortexAngle) * vortexStrength;
+            this.y += Math.sin(vortexAngle) * vortexStrength;
         } else {
             this.targetOpacity = 0;
             if (this.x !== this.baseX) {
