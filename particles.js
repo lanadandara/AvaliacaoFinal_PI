@@ -7,11 +7,11 @@ canvas.height = window.innerHeight;
 let mouse = {
     x: null,
     y: null,
-    radius: 200
+    radius: 150
 };
 
-let glitchSlices = [];
-let pixelSize = 4;
+let nodes = [];
+let time = 0;
 
 window.addEventListener('mousemove', function(event) {
     mouse.x = event.x;
@@ -29,153 +29,173 @@ window.addEventListener('mouseout', function() {
     mouse.y = null;
 });
 
-class GlitchSlice {
-    constructor(y) {
-        this.y = y;
+class Node {
+    constructor(x, y, id) {
+        this.baseX = x;
         this.baseY = y;
-        this.height = Math.random() * 15 + 5;
-        this.offsetX = 0;
-        this.targetOffsetX = 0;
+        this.x = x;
+        this.y = y;
+        this.id = id;
+
+        // Visual properties
+        this.size = Math.random() * 2 + 1;
+        this.baseSize = this.size;
         this.opacity = 0;
-        this.targetOpacity = 0;
-        this.rgbShift = 0;
-        this.targetRgbShift = 0;
-        this.pixelation = 0;
-        this.targetPixelation = 0;
-        this.glitchIntensity = Math.random();
-        this.updateTimer = 0;
-        this.staticNoise = Math.random();
+        this.targetOpacity = Math.random() * 0.3 + 0.1;
+
+        // Movement properties
+        this.vx = 0;
+        this.vy = 0;
+        this.damping = 0.85;
+        this.spring = 0.03;
+
+        // Noise offset for organic movement
+        this.noiseOffsetX = Math.random() * 1000;
+        this.noiseOffsetY = Math.random() * 1000;
+        this.noiseSpeed = Math.random() * 0.0005 + 0.0002;
+
+        // Lifecycle
+        this.life = Math.random();
+        this.lifeSpeed = Math.random() * 0.01 + 0.005;
+
+        // Mouse interaction
+        this.distanceFromMouse = Infinity;
     }
 
     update() {
-        // Check if mouse is near this slice
+        time += 0.001;
+
+        // Organic noise-based movement when no mouse
+        let noiseX = (Math.sin(this.noiseOffsetX + time * 1000 * this.noiseSpeed) * 0.5 + 0.5) * 30 - 15;
+        let noiseY = (Math.cos(this.noiseOffsetY + time * 1000 * this.noiseSpeed) * 0.5 + 0.5) * 30 - 15;
+
+        // Calculate distance from mouse
         if (mouse.x !== null && mouse.y !== null) {
-            let dy = Math.abs(mouse.y - this.y);
-            let dx = Math.abs(mouse.x - canvas.width / 2);
+            let dx = mouse.x - this.baseX;
+            let dy = mouse.y - this.baseY;
+            this.distanceFromMouse = Math.sqrt(dx * dx + dy * dy);
 
-            if (dy < mouse.radius) {
-                let distance = dy;
-                let force = 1 - (distance / mouse.radius);
+            if (this.distanceFromMouse < mouse.radius) {
+                // Strong repulsion/attraction based on distance
+                let force = (1 - this.distanceFromMouse / mouse.radius) * 2;
+                let angle = Math.atan2(dy, dx);
 
-                // Set target values based on mouse proximity
-                this.targetOpacity = force * 0.8;
-                this.targetOffsetX = (Math.random() - 0.5) * force * 150 * this.glitchIntensity;
-                this.targetRgbShift = force * 8 * this.glitchIntensity;
-                this.targetPixelation = force * 12;
+                // Create fluid wave effect
+                let waveEffect = Math.sin(this.distanceFromMouse * 0.05 - time * 5) * force;
 
-                // Random repositioning for glitchy effect
-                this.updateTimer++;
-                if (this.updateTimer > 5 && Math.random() > 0.7) {
-                    this.targetOffsetX = (Math.random() - 0.5) * force * 200;
-                    this.updateTimer = 0;
-                }
+                // Push away from mouse with wave motion
+                this.vx -= Math.cos(angle) * force * 3 + waveEffect * Math.cos(angle);
+                this.vy -= Math.sin(angle) * force * 3 + waveEffect * Math.sin(angle);
+
+                // Increase opacity and size near mouse
+                this.targetOpacity = Math.min(1, force * 0.8 + 0.2);
+                this.size = this.baseSize * (1 + force * 2);
             } else {
-                this.targetOpacity = 0;
-                this.targetOffsetX = 0;
-                this.targetRgbShift = 0;
-                this.targetPixelation = 0;
+                this.targetOpacity = Math.random() * 0.3 + 0.1;
+                this.size = this.baseSize;
             }
         } else {
-            this.targetOpacity = 0;
-            this.targetOffsetX = 0;
-            this.targetRgbShift = 0;
-            this.targetPixelation = 0;
+            this.targetOpacity = Math.random() * 0.3 + 0.1;
+            this.size = this.baseSize;
+            this.distanceFromMouse = Infinity;
         }
 
-        // Smooth interpolation
-        this.opacity += (this.targetOpacity - this.opacity) * 0.15;
-        this.offsetX += (this.targetOffsetX - this.offsetX) * 0.1;
-        this.rgbShift += (this.targetRgbShift - this.rgbShift) * 0.15;
-        this.pixelation += (this.targetPixelation - this.pixelation) * 0.1;
+        // Apply spring force to return to base position
+        let dx = this.baseX + noiseX - this.x;
+        let dy = this.baseY + noiseY - this.y;
+
+        this.vx += dx * this.spring;
+        this.vy += dy * this.spring;
+
+        // Apply velocity and damping
+        this.vx *= this.damping;
+        this.vy *= this.damping;
+
+        this.x += this.vx;
+        this.y += this.vy;
+
+        // Update opacity smoothly
+        this.opacity += (this.targetOpacity - this.opacity) * 0.1;
+
+        // Lifecycle animation (subtle pulsing)
+        this.life += this.lifeSpeed;
+        if (this.life > Math.PI * 2) {
+            this.life = 0;
+        }
     }
 
     draw() {
         if (this.opacity > 0.01) {
-            let currentY = this.y;
-            let currentHeight = this.height;
+            // Pulsing effect
+            let pulse = Math.sin(this.life) * 0.2 + 0.8;
+            let finalOpacity = this.opacity * pulse;
+            let finalSize = this.size * pulse;
 
-            // Draw pixelated effect
-            if (this.pixelation > 0.5) {
-                let pixSize = Math.max(2, Math.floor(this.pixelation));
-                ctx.fillStyle = `rgba(255, 255, 255, ${this.opacity * 0.3})`;
-
-                for (let x = 0; x < canvas.width; x += pixSize) {
-                    if (Math.random() > 0.5) {
-                        let randomOffset = (Math.random() - 0.5) * this.pixelation * 2;
-                        ctx.fillRect(
-                            x + this.offsetX + randomOffset,
-                            currentY,
-                            pixSize,
-                            currentHeight
-                        );
-                    }
-                }
-            }
-
-            // RGB split effect for glitch
-            if (this.rgbShift > 0.5) {
-                // Red channel
-                ctx.fillStyle = `rgba(255, 0, 0, ${this.opacity * 0.4})`;
-                ctx.fillRect(
-                    this.offsetX - this.rgbShift,
-                    currentY,
-                    canvas.width,
-                    currentHeight
-                );
-
-                // Green channel
-                ctx.fillStyle = `rgba(0, 255, 0, ${this.opacity * 0.3})`;
-                ctx.fillRect(
-                    this.offsetX,
-                    currentY,
-                    canvas.width,
-                    currentHeight
-                );
-
-                // Blue channel
-                ctx.fillStyle = `rgba(0, 0, 255, ${this.opacity * 0.4})`;
-                ctx.fillRect(
-                    this.offsetX + this.rgbShift,
-                    currentY,
-                    canvas.width,
-                    currentHeight
-                );
-            }
-
-            // Main white glitch bars
-            ctx.fillStyle = `rgba(255, 255, 255, ${this.opacity})`;
+            // Draw pixelated dot
+            ctx.fillStyle = `rgba(255, 255, 255, ${finalOpacity})`;
             ctx.fillRect(
-                this.offsetX,
-                currentY,
-                canvas.width,
-                currentHeight
+                Math.floor(this.x - finalSize / 2),
+                Math.floor(this.y - finalSize / 2),
+                Math.ceil(finalSize),
+                Math.ceil(finalSize)
             );
 
-            // Add some horizontal line segments for more glitch effect
-            if (this.opacity > 0.3 && Math.random() > 0.6) {
-                ctx.fillStyle = `rgba(${Math.random() * 100 + 155}, ${Math.random() * 100 + 155}, ${Math.random() * 100 + 155}, ${this.opacity * 0.8})`;
-                let segmentWidth = Math.random() * 200 + 50;
-                let segmentX = Math.random() * canvas.width;
+            // Add glow for nodes near mouse
+            if (this.distanceFromMouse < mouse.radius * 0.6 && mouse.x !== null) {
+                let glowSize = finalSize * 2;
+                ctx.fillStyle = `rgba(255, 255, 255, ${finalOpacity * 0.2})`;
                 ctx.fillRect(
-                    segmentX + this.offsetX,
-                    currentY,
-                    segmentWidth,
-                    currentHeight * 0.5
+                    Math.floor(this.x - glowSize / 2),
+                    Math.floor(this.y - glowSize / 2),
+                    Math.ceil(glowSize),
+                    Math.ceil(glowSize)
                 );
             }
+        }
+    }
 
-            // Pixelated noise overlay
-            if (this.pixelation > 2) {
-                for (let i = 0; i < 10; i++) {
-                    if (Math.random() > 0.7) {
-                        let noiseSize = Math.floor(this.pixelation / 2) + 2;
-                        ctx.fillStyle = `rgba(${Math.random() * 255}, ${Math.random() * 255}, ${Math.random() * 255}, ${this.opacity * 0.5})`;
-                        ctx.fillRect(
-                            Math.random() * canvas.width + this.offsetX,
-                            currentY + Math.random() * currentHeight,
-                            noiseSize,
-                            noiseSize
-                        );
+    drawConnections(otherNodes) {
+        // Only draw connections if node is visible enough
+        if (this.opacity < 0.1) return;
+
+        let maxDistance = 80;
+        let connectionOpacity = this.opacity * 0.3;
+
+        for (let other of otherNodes) {
+            if (other.id <= this.id) continue; // Avoid duplicate connections
+            if (other.opacity < 0.1) continue;
+
+            let dx = other.x - this.x;
+            let dy = other.y - this.y;
+            let distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance < maxDistance) {
+                let opacity = (1 - distance / maxDistance) * connectionOpacity * other.opacity;
+
+                // Draw pixelated line
+                ctx.strokeStyle = `rgba(255, 255, 255, ${opacity})`;
+                ctx.lineWidth = 1;
+
+                ctx.beginPath();
+                ctx.moveTo(Math.floor(this.x), Math.floor(this.y));
+                ctx.lineTo(Math.floor(other.x), Math.floor(other.y));
+                ctx.stroke();
+
+                // Boost connection opacity near mouse
+                if (mouse.x !== null) {
+                    let midX = (this.x + other.x) / 2;
+                    let midY = (this.y + other.y) / 2;
+                    let distToMouse = Math.sqrt((mouse.x - midX) ** 2 + (mouse.y - midY) ** 2);
+
+                    if (distToMouse < mouse.radius * 0.7) {
+                        let boost = (1 - distToMouse / (mouse.radius * 0.7)) * 0.4;
+                        ctx.strokeStyle = `rgba(255, 255, 255, ${opacity + boost})`;
+                        ctx.lineWidth = 2;
+
+                        ctx.beginPath();
+                        ctx.moveTo(Math.floor(this.x), Math.floor(this.y));
+                        ctx.lineTo(Math.floor(other.x), Math.floor(other.y));
+                        ctx.stroke();
                     }
                 }
             }
@@ -184,34 +204,61 @@ class GlitchSlice {
 }
 
 function init() {
-    glitchSlices = [];
-    let sliceCount = Math.floor(canvas.height / 15);
+    nodes = [];
 
-    for (let i = 0; i < sliceCount; i++) {
-        let y = (canvas.height / sliceCount) * i;
-        glitchSlices.push(new GlitchSlice(y));
+    // Create irregular grid of nodes
+    let spacingX = 40;
+    let spacingY = 40;
+    let cols = Math.ceil(canvas.width / spacingX) + 2;
+    let rows = Math.ceil(canvas.height / spacingY) + 2;
+
+    let id = 0;
+    for (let i = 0; i < rows; i++) {
+        for (let j = 0; j < cols; j++) {
+            // Add randomness to grid positions for organic look
+            let x = j * spacingX + (Math.random() - 0.5) * spacingX * 0.5 - spacingX;
+            let y = i * spacingY + (Math.random() - 0.5) * spacingY * 0.5 - spacingY;
+
+            // Skip some nodes randomly for dispersed effect
+            if (Math.random() > 0.15) {
+                nodes.push(new Node(x, y, id++));
+            }
+        }
     }
 }
 
 function animate() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Fade effect instead of clear for trail
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Optional: add subtle background static when mouse is present
-    if (mouse.x !== null && mouse.y !== null && Math.random() > 0.95) {
-        for (let i = 0; i < 50; i++) {
-            ctx.fillStyle = `rgba(255, 255, 255, ${Math.random() * 0.1})`;
-            ctx.fillRect(
-                Math.random() * canvas.width,
-                Math.random() * canvas.height,
-                Math.random() * 3 + 1,
-                Math.random() * 3 + 1
-            );
-        }
+    // Update all nodes
+    for (let node of nodes) {
+        node.update();
     }
 
-    for (let i = 0; i < glitchSlices.length; i++) {
-        glitchSlices[i].update();
-        glitchSlices[i].draw();
+    // Draw connections first (behind nodes)
+    for (let node of nodes) {
+        node.drawConnections(nodes);
+    }
+
+    // Draw nodes on top
+    for (let node of nodes) {
+        node.draw();
+    }
+
+    // Add occasional pixel "dust" near mouse
+    if (mouse.x !== null && Math.random() > 0.8) {
+        for (let i = 0; i < 5; i++) {
+            let angle = Math.random() * Math.PI * 2;
+            let distance = Math.random() * mouse.radius * 0.8;
+            let x = mouse.x + Math.cos(angle) * distance;
+            let y = mouse.y + Math.sin(angle) * distance;
+            let size = Math.random() * 2 + 1;
+
+            ctx.fillStyle = `rgba(255, 255, 255, ${Math.random() * 0.3})`;
+            ctx.fillRect(Math.floor(x), Math.floor(y), size, size);
+        }
     }
 
     requestAnimationFrame(animate);
