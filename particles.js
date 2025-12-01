@@ -97,26 +97,26 @@ class Particle {
                            (noiseAngle1 * 0.3) +
                            (noiseAngle2 * 0.3);
 
-            // Adiciona variação aleatória muito forte
-            finalAngle += (Math.random() - 0.5) * Math.PI * 1.2 * this.chaosLevel;
+            // Adiciona variação aleatória moderada
+            finalAngle += (Math.random() - 0.5) * Math.PI * 0.6 * this.chaosLevel;
 
-            // Força de dispersão variável e intensa
-            let dispersionForce = force * this.density * (2 + Math.random() * 2) * this.chaosLevel;
+            // Força de dispersão mais suave
+            let dispersionForce = force * this.density * (1 + Math.random() * 0.8) * this.chaosLevel;
 
             // Aplica a força na direção final (não-radial)
             this.x += Math.cos(finalAngle) * dispersionForce;
             this.y += Math.sin(finalAngle) * dispersionForce;
 
-            // Múltiplas ondas de turbulência em diferentes escalas
-            let turbulence1 = Math.sin(time * 1.3 + distance * 0.15) * 3 * this.chaosLevel;
-            let turbulence2 = Math.cos(time * 0.8 + distance * 0.08) * 2 * this.chaosLevel;
+            // Turbulência mais sutil
+            let turbulence1 = Math.sin(time * 1.3 + distance * 0.15) * 1.5 * this.chaosLevel;
+            let turbulence2 = Math.cos(time * 0.8 + distance * 0.08) * 1 * this.chaosLevel;
 
-            this.x += turbulence1 + (Math.random() - 0.5) * 4;
-            this.y += turbulence2 + (Math.random() - 0.5) * 4;
+            this.x += turbulence1 + (Math.random() - 0.5) * 2;
+            this.y += turbulence2 + (Math.random() - 0.5) * 2;
 
-            // Vórtice que empurra partículas em espiral, não em círculo
+            // Vórtice mais suave
             let vortexAngle = finalAngle + Math.PI / 2;
-            let vortexStrength = Math.sin(time * 2 + distance * 0.2) * force * 3;
+            let vortexStrength = Math.sin(time * 2 + distance * 0.2) * force * 1.5;
             this.x += Math.cos(vortexAngle) * vortexStrength;
             this.y += Math.sin(vortexAngle) * vortexStrength;
         } else {
