@@ -63,19 +63,29 @@ class Particle {
         if (distance < mouse.radius) {
             this.targetOpacity = Math.min(1, force * 2);
 
-            // Dispersão irregular
+            // Dispersão muito mais irregular e aleatória
             let angle = Math.atan2(dy, dx);
-            let irregularity = (Math.sin(Date.now() * 0.001 + this.baseX * 0.01) * 0.5 + 0.5) * Math.PI * 0.3;
-            angle += irregularity;
 
-            let pushForce = force * this.density * 2;
+            // Aumenta a irregularidade do ângulo para maior dispersão
+            let irregularity = (Math.sin(Date.now() * 0.001 + this.baseX * 0.01) * 0.5 + 0.5) * Math.PI * 0.8;
+            let randomVariation = (Math.random() - 0.5) * Math.PI * 0.6;
+            angle += irregularity + randomVariation;
+
+            // Força de push mais variável e intensa
+            let pushForce = force * this.density * (2.5 + Math.random() * 1.5);
             this.x -= Math.cos(angle) * pushForce;
             this.y -= Math.sin(angle) * pushForce;
 
-            // Adiciona movimento espiral
-            let spiral = Math.sin(Date.now() * 0.002 + distance * 0.1) * 2;
-            this.x += Math.cos(angle + Math.PI / 2) * spiral;
-            this.y += Math.sin(angle + Math.PI / 2) * spiral;
+            // Movimento espiral e perpendicular mais pronunciado
+            let spiral = Math.sin(Date.now() * 0.002 + distance * 0.1 + this.baseX * 0.05) * 4;
+            let perpendicularForce = (Math.random() - 0.5) * 3;
+
+            this.x += Math.cos(angle + Math.PI / 2) * (spiral + perpendicularForce);
+            this.y += Math.sin(angle + Math.PI / 2) * (spiral + perpendicularForce);
+
+            // Adiciona turbulência extra para quebrar padrões circulares
+            this.x += (Math.random() - 0.5) * force * 5;
+            this.y += (Math.random() - 0.5) * force * 5;
         } else {
             this.targetOpacity = 0;
             if (this.x !== this.baseX) {
