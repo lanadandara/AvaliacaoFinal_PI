@@ -35,10 +35,10 @@ body {
 
 .brand {
     font-family: 'Special Gothic Condensed One', sans-serif;
-    font-size: 5rem;
+    font-size: 9rem;
     font-weight: 400;
     letter-spacing: 0.3rem;
-    margin-bottom: 1rem;
+    margin-bottom: 0.3rem;
     text-transform: uppercase;
     color: #ffffff;
     animation: fadeIn 1s ease-in;
@@ -46,7 +46,7 @@ body {
 
 .subtitle {
     font-family: 'Junicode', serif;
-    font-size: 1.2rem;
+    font-size: 1.6rem;
     font-weight: 400;
     letter-spacing: 0.2rem;
     margin-bottom: 3rem;
@@ -90,11 +90,11 @@ body {
 
 @media (max-width: 768px) {
     .brand {
-        font-size: 3rem;
+        font-size: 5rem;
     }
 
     .subtitle {
-        font-size: 1rem;
+        font-size: 1.2rem;
     }
 
     .contact {
