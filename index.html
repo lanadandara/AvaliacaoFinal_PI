@@ -19,5 +19,28 @@
     </div>
 
     <script src="particles.js"></script>
+    <script>
+        // Email copy functionality
+        const contactLink = document.querySelector('.contact');
+        const originalText = contactLink.textContent;
+
+        contactLink.addEventListener('click', function(e) {
+            e.preventDefault();
+
+            // Copy email to clipboard
+            const email = 'hello@gambia.com';
+            navigator.clipboard.writeText(email).then(function() {
+                // Change text
+                contactLink.textContent = 'email copied, share your ideas with us';
+
+                // Reset after 3 seconds
+                setTimeout(function() {
+                    contactLink.textContent = originalText;
+                }, 3000);
+            }).catch(function(err) {
+                console.error('Failed to copy email: ', err);
+            });
+        });
+    </script>
 </body>
 </html>

@@ -62,15 +62,15 @@ body {
     color: #FFF;
     text-decoration: none;
     padding: 0.8rem 2rem;
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    border: none;
     border-radius: 30px;
     transition: all 0.3s ease;
     animation: fadeIn 2s ease-in;
+    cursor: pointer;
 }
 
 .contact:hover {
     color: #ffffff;
-    border-color: rgba(255, 255, 255, 0.8);
     background-color: rgba(255, 255, 255, 0.05);
     transform: translateY(-2px);
 }
